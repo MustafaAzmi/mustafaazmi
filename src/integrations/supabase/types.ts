@@ -14,7 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      interactions: {
+        Row: {
+          created_at: string
+          id: string
+          interaction_type: Database["public"]["Enums"]["interaction_type"]
+          message: string | null
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          interaction_type: Database["public"]["Enums"]["interaction_type"]
+          message?: string | null
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          interaction_type?: Database["public"]["Enums"]["interaction_type"]
+          message?: string | null
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interactions_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +75,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      interaction_type: "interested" | "curious" | "message"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +202,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      interaction_type: ["interested", "curious", "message"],
+    },
   },
 } as const
