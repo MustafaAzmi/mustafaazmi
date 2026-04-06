@@ -1,26 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Eye, Heart, HelpCircle, Lock, LogOut, Link2, Copy } from "lucide-react";
+import { Eye, LogOut, Link2, Copy, Zap } from "lucide-react";
 import { toast } from "sonner";
+import ShadowProfileCard from "@/components/ShadowProfileCard";
+import PuzzleModal from "@/components/PuzzleModal";
+import EnergyBar from "@/components/EnergyBar";
 
-interface InteractionSummary {
-  interested: number;
-  curious: number;
-  messages: number;
-  total: number;
-  latest: string | null;
+interface Interaction {
+  id: string;
+  interaction_type: string;
+  message: string | null;
+  created_at: string;
+  anonymous_id: string | null;
+  device_type: string | null;
+  city: string | null;
+  session_fingerprint: string | null;
+}
+
+interface Puzzle {
+  id: string;
+  level: number;
+  question: string;
+  answer: string;
+  hint_reward: string;
+  difficulty: string;
+}
+
+interface UnlockedHint {
+  puzzleId: string;
+  hint: string;
+  anonymousId: string;
 }
 
 const Dashboard = () => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [summary, setSummary] = useState<InteractionSummary>({
-    interested: 0, curious: 0, messages: 0, total: 0, latest: null,
-  });
+  const [interactions, setInteractions] = useState<Interaction[]>([]);
+  const [puzzles, setPuzzles] = useState<Puzzle[]>([]);
+  const [unlockedHints, setUnlockedHints] = useState<UnlockedHint[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [puzzleModalOpen, setPuzzleModalOpen] = useState(false);
+  const [currentPuzzleAnonId, setCurrentPuzzleAnonId] = useState<string | null>(null);
+  const [attentionMessage, setAttentionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -28,29 +52,64 @@ const Dashboard = () => {
     }
   }, [loading, user, navigate]);
 
+  const fetchInteractions = useCallback(async () => {
+    if (!profile) return;
+    const { data } = await supabase
+      .from("interactions")
+      .select("id, interaction_type, message, created_at, anonymous_id, device_type, city, session_fingerprint")
+      .eq("profile_id", profile.id)
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      setInteractions(data as Interaction[]);
+
+      // Generate attention messages
+      const recentCount = data.filter(
+        (d) => Date.now() - new Date(d.created_at).getTime() < 3600000
+      ).length;
+      if (recentCount >= 5) {
+        setAttentionMessage("🔥 Your profile is on fire right now!");
+      } else if (recentCount >= 3) {
+        setAttentionMessage("Your profile is gaining attention today");
+      } else if (recentCount >= 1) {
+        setAttentionMessage("You are being viewed more than usual");
+      } else {
+        setAttentionMessage(null);
+      }
+    }
+    setFetching(false);
+  }, [profile]);
+
   useEffect(() => {
     if (!profile) return;
 
-    const fetchInteractions = async () => {
-      const { data } = await supabase
-        .from("interactions")
-        .select("interaction_type, created_at")
-        .eq("profile_id", profile.id)
-        .order("created_at", { ascending: false });
-
-      if (data) {
-        setSummary({
-          interested: data.filter(d => d.interaction_type === "interested").length,
-          curious: data.filter(d => d.interaction_type === "curious").length,
-          messages: data.filter(d => d.interaction_type === "message").length,
-          total: data.length,
-          latest: data[0]?.created_at || null,
-        });
-      }
-      setFetching(false);
-    };
-
     fetchInteractions();
+
+    // Fetch puzzles
+    supabase
+      .from("puzzles")
+      .select("*")
+      .order("level", { ascending: true })
+      .then(({ data }) => {
+        if (data) setPuzzles(data as Puzzle[]);
+      });
+
+    // Fetch puzzle progress
+    supabase
+      .from("puzzle_progress")
+      .select("puzzle_id, interaction_anonymous_id")
+      .eq("user_id", user!.id)
+      .then(({ data }) => {
+        if (data) {
+          // We'll resolve hints later when puzzles are loaded
+          const hints = data.map((d) => ({
+            puzzleId: d.puzzle_id,
+            hint: "", // resolved below
+            anonymousId: d.interaction_anonymous_id,
+          }));
+          setUnlockedHints(hints);
+        }
+      });
 
     // Real-time subscription
     const channel = supabase
@@ -67,12 +126,73 @@ const Dashboard = () => {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [profile]);
+  }, [profile, user, fetchInteractions]);
+
+  // Resolve hint texts once puzzles are loaded
+  useEffect(() => {
+    if (puzzles.length > 0 && unlockedHints.some((h) => !h.hint)) {
+      setUnlockedHints((prev) =>
+        prev.map((h) => {
+          if (!h.hint) {
+            const puzzle = puzzles.find((p) => p.id === h.puzzleId);
+            return { ...h, hint: puzzle?.hint_reward || "A shadow revealed" };
+          }
+          return h;
+        })
+      );
+    }
+  }, [puzzles, unlockedHints]);
 
   const copyLink = () => {
     if (!profile) return;
     navigator.clipboard.writeText(`${window.location.origin}/${profile.username}`);
     toast.success("Link copied! Share it and see who's curious…");
+  };
+
+  // Group interactions by anonymous_id
+  const shadowProfiles = interactions.reduce<Record<string, Interaction[]>>((acc, interaction) => {
+    const key = interaction.anonymous_id || "unknown";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(interaction);
+    return acc;
+  }, {});
+
+  const getNextPuzzle = (anonId: string): Puzzle | null => {
+    const solvedForAnon = unlockedHints
+      .filter((h) => h.anonymousId === anonId)
+      .map((h) => h.puzzleId);
+    return puzzles.find((p) => !solvedForAnon.includes(p.id)) || null;
+  };
+
+  const handleOpenPuzzle = (anonId: string) => {
+    setCurrentPuzzleAnonId(anonId);
+    setPuzzleModalOpen(true);
+  };
+
+  const handlePuzzleSolved = async (puzzleId: string, hintReward: string) => {
+    if (!user || !currentPuzzleAnonId) return;
+
+    await supabase.from("puzzle_progress").insert({
+      user_id: user.id,
+      interaction_anonymous_id: currentPuzzleAnonId,
+      puzzle_id: puzzleId,
+    });
+
+    setUnlockedHints((prev) => [
+      ...prev,
+      { puzzleId, hint: hintReward, anonymousId: currentPuzzleAnonId },
+    ]);
+
+    toast.success("🔓 New hint unlocked!");
+  };
+
+  const handleGuess = async (anonId: string, guess: string) => {
+    if (!user) return;
+    await supabase.from("guesses").insert({
+      user_id: user.id,
+      interaction_anonymous_id: anonId,
+      guess_text: guess,
+    });
   };
 
   if (loading || fetching) {
@@ -85,47 +205,9 @@ const Dashboard = () => {
 
   if (!profile) return null;
 
-  const getTimeAgo = (dateStr: string) => {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
-  };
-
-  // Build mystery feed items
-  const feedItems: { icon: typeof Eye; text: string; detail: string; color: string }[] = [];
-
-  if (summary.interested > 0) {
-    feedItems.push({
-      icon: Heart,
-      text: summary.interested === 1 ? "Someone is interested in you" : `${summary.interested} people are interested`,
-      detail: "They chose to let you know…",
-      color: "text-pink-400",
-    });
-  }
-  if (summary.curious > 0) {
-    feedItems.push({
-      icon: Eye,
-      text: summary.curious === 1 ? "Someone is watching you" : `${summary.curious} silent watchers`,
-      detail: "They're curious but won't say why…",
-      color: "text-mystery-accent",
-    });
-  }
-  if (summary.messages > 0) {
-    feedItems.push({
-      icon: Lock,
-      text: summary.messages === 1 ? "1 hidden message 🔒" : `${summary.messages} hidden messages 🔒`,
-      detail: "Someone has something to say…",
-      color: "text-mystery-warm",
-    });
-  }
-
   return (
     <div className="min-h-screen px-4 py-8">
-      <div className="mx-auto max-w-lg space-y-8">
+      <div className="mx-auto max-w-lg space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -154,45 +236,37 @@ const Dashboard = () => {
           <Copy className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
         </button>
 
-        {/* Mystery notification */}
-        {summary.total > 0 && (
-          <div className="rounded-lg border border-border/50 bg-card/50 p-5 text-center space-y-2 backdrop-blur-sm border-glow animate-fade-in">
-            <p className="text-sm text-muted-foreground">
-              You received new interactions… but not everything is visible 👀
-            </p>
-            <p className="text-3xl font-bold text-glow">{summary.total}</p>
-            <p className="text-xs text-muted-foreground">
-              total interactions {summary.latest && `· last ${getTimeAgo(summary.latest)}`}
-            </p>
+        {/* Attention message */}
+        {attentionMessage && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center animate-fade-in">
+            <div className="flex items-center justify-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              <p className="text-sm font-medium text-primary">{attentionMessage}</p>
+            </div>
           </div>
         )}
 
-        {/* Feed */}
-        {feedItems.length > 0 ? (
-          <div className="space-y-3">
-            {feedItems.map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-4 rounded-lg border border-border/50 bg-card/50 p-5 backdrop-blur-sm animate-slide-up"
-                style={{ animationDelay: `${i * 0.1}s` }}
-              >
-                <div className="rounded-full bg-secondary p-3">
-                  <item.icon className={`h-5 w-5 ${item.color}`} />
-                </div>
-                <div>
-                  <p className="font-medium">{item.text}</p>
-                  <p className="text-sm text-muted-foreground">{item.detail}</p>
-                </div>
-              </div>
-            ))}
+        {/* Energy Bar */}
+        <EnergyBar interactionCount={interactions.length} />
 
-            {/* Tease */}
-            <div className="rounded-lg border border-dashed border-border/30 p-5 text-center space-y-2">
-              <HelpCircle className="mx-auto h-5 w-5 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
-                More details coming soon… keep sharing your link to unlock more
-              </p>
-            </div>
+        {/* Shadow Profiles */}
+        {Object.keys(shadowProfiles).length > 0 ? (
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-medium">
+              Shadow Profiles ({Object.keys(shadowProfiles).length})
+            </p>
+            {Object.entries(shadowProfiles).map(([anonId, ints]) => (
+              <ShadowProfileCard
+                key={anonId}
+                anonymousId={anonId}
+                interactions={ints}
+                unlockedHints={unlockedHints
+                  .filter((h) => h.anonymousId === anonId)
+                  .map((h) => ({ puzzleId: h.puzzleId, hint: h.hint }))}
+                onOpenPuzzle={handleOpenPuzzle}
+                onGuess={handleGuess}
+              />
+            ))}
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-border/30 p-8 text-center space-y-4">
@@ -206,6 +280,14 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Puzzle Modal */}
+      <PuzzleModal
+        open={puzzleModalOpen}
+        onOpenChange={setPuzzleModalOpen}
+        puzzle={currentPuzzleAnonId ? getNextPuzzle(currentPuzzleAnonId) : null}
+        onSolved={handlePuzzleSolved}
+      />
     </div>
   );
 };
