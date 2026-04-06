@@ -14,27 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
-      interactions: {
+      guesses: {
         Row: {
           created_at: string
+          guess_text: string
+          id: string
+          interaction_anonymous_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          guess_text: string
+          id?: string
+          interaction_anonymous_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          guess_text?: string
+          id?: string
+          interaction_anonymous_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      interactions: {
+        Row: {
+          anonymous_id: string | null
+          city: string | null
+          created_at: string
+          device_type: string | null
           id: string
           interaction_type: Database["public"]["Enums"]["interaction_type"]
           message: string | null
           profile_id: string
+          session_fingerprint: string | null
         }
         Insert: {
+          anonymous_id?: string | null
+          city?: string | null
           created_at?: string
+          device_type?: string | null
           id?: string
           interaction_type: Database["public"]["Enums"]["interaction_type"]
           message?: string | null
           profile_id: string
+          session_fingerprint?: string | null
         }
         Update: {
+          anonymous_id?: string | null
+          city?: string | null
           created_at?: string
+          device_type?: string | null
           id?: string
           interaction_type?: Database["public"]["Enums"]["interaction_type"]
           message?: string | null
           profile_id?: string
+          session_fingerprint?: string | null
         }
         Relationships: [
           {
@@ -67,6 +103,68 @@ export type Database = {
         }
         Relationships: []
       }
+      puzzle_progress: {
+        Row: {
+          id: string
+          interaction_anonymous_id: string
+          puzzle_id: string
+          solved_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          interaction_anonymous_id: string
+          puzzle_id: string
+          solved_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          interaction_anonymous_id?: string
+          puzzle_id?: string
+          solved_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "puzzle_progress_puzzle_id_fkey"
+            columns: ["puzzle_id"]
+            isOneToOne: false
+            referencedRelation: "puzzles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      puzzles: {
+        Row: {
+          answer: string
+          created_at: string
+          difficulty: string
+          hint_reward: string
+          id: string
+          level: number
+          question: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          difficulty?: string
+          hint_reward: string
+          id?: string
+          level: number
+          question: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          difficulty?: string
+          hint_reward?: string
+          id?: string
+          level?: number
+          question?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -75,7 +173,19 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      interaction_type: "interested" | "curious" | "message"
+      interaction_type:
+        | "interested"
+        | "curious"
+        | "message"
+        | "proximity_close"
+        | "proximity_circle"
+        | "proximity_often"
+        | "time_past"
+        | "time_recent"
+        | "time_long"
+        | "relationship_friend"
+        | "relationship_know"
+        | "relationship_interested"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -203,7 +313,20 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      interaction_type: ["interested", "curious", "message"],
+      interaction_type: [
+        "interested",
+        "curious",
+        "message",
+        "proximity_close",
+        "proximity_circle",
+        "proximity_often",
+        "time_past",
+        "time_recent",
+        "time_long",
+        "relationship_friend",
+        "relationship_know",
+        "relationship_interested",
+      ],
     },
   },
 } as const

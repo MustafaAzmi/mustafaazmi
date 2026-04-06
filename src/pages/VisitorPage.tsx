@@ -3,10 +3,68 @@ import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Eye, Heart, HelpCircle, MessageCircle, Send } from "lucide-react";
+import { Eye, Heart, HelpCircle, MessageCircle, Send, MapPin, Users, Clock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-type Step = "loading" | "intro" | "actions" | "message" | "sent";
+type Step = "loading" | "intro" | "actions" | "message" | "coded_chat" | "sent";
+
+const CODED_CHAT_CATEGORIES = [
+  {
+    label: "Proximity",
+    icon: MapPin,
+    color: "text-primary",
+    bgColor: "bg-primary/10 border-primary/20",
+    buttons: [
+      { type: "proximity_close" as const, label: "Close to me?" },
+      { type: "proximity_circle" as const, label: "From my circle?" },
+      { type: "proximity_often" as const, label: "We meet often?" },
+    ],
+  },
+  {
+    label: "Time",
+    icon: Clock,
+    color: "text-mystery-accent",
+    bgColor: "bg-accent/10 border-accent/20",
+    buttons: [
+      { type: "time_past" as const, label: "From the past?" },
+      { type: "time_recent" as const, label: "Recently noticed?" },
+      { type: "time_long" as const, label: "Long time watching?" },
+    ],
+  },
+  {
+    label: "Relationship",
+    icon: Users,
+    color: "text-mystery-warm",
+    bgColor: "bg-mystery-warm/10 border-mystery-warm/20",
+    buttons: [
+      { type: "relationship_friend" as const, label: "Friend?" },
+      { type: "relationship_know" as const, label: "Just know me?" },
+      { type: "relationship_interested" as const, label: "Interested?" },
+    ],
+  },
+];
+
+function getAnonymousId(): string {
+  let id = sessionStorage.getItem("shadow_anon_id");
+  if (!id) {
+    id = "#" + Math.random().toString(36).substring(2, 6).toUpperCase();
+    sessionStorage.setItem("shadow_anon_id", id);
+  }
+  return id;
+}
+
+function getDeviceType(): string {
+  return /Mobi|Android/i.test(navigator.userAgent) ? "mobile" : "desktop";
+}
+
+function getFingerprint(): string {
+  let fp = sessionStorage.getItem("shadow_fp");
+  if (!fp) {
+    fp = Math.random().toString(36).substring(2, 12);
+    sessionStorage.setItem("shadow_fp", fp);
+  }
+  return fp;
+}
 
 const VisitorPage = () => {
   const { username } = useParams<{ username: string }>();
@@ -14,6 +72,7 @@ const VisitorPage = () => {
   const [step, setStep] = useState<Step>("loading");
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
+  const [city, setCity] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -31,22 +90,38 @@ const VisitorPage = () => {
       }
     };
     fetchProfile();
+
+    // Fetch city-level geolocation
+    fetch("https://ip-api.com/json/?fields=city")
+      .then((r) => r.json())
+      .then((d) => { if (d.city) setCity(d.city); })
+      .catch(() => {});
   }, [username]);
 
-  const sendInteraction = async (type: "interested" | "curious" | "message", msg?: string) => {
+  const sendInteraction = async (
+    type: string,
+    msg?: string
+  ) => {
     if (!profileId) return;
 
-    // Filter phone numbers from messages
     if (msg && /\d{7,}/.test(msg.replace(/[\s\-\(\)]/g, ""))) {
       toast.error("Phone numbers are not allowed in messages.");
+      return;
+    }
+    if (msg && /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(msg)) {
+      toast.error("Email addresses are not allowed.");
       return;
     }
 
     setSending(true);
     const { error } = await supabase.from("interactions").insert({
       profile_id: profileId,
-      interaction_type: type,
+      interaction_type: type as any,
       message: msg || null,
+      anonymous_id: getAnonymousId(),
+      device_type: getDeviceType(),
+      city: city,
+      session_fingerprint: getFingerprint(),
     });
     setSending(false);
 
@@ -82,7 +157,7 @@ const VisitorPage = () => {
       {/* Background effects */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute left-1/3 top-1/3 h-72 w-72 rounded-full bg-primary/5 blur-3xl animate-float" />
-        <div className="absolute right-1/4 bottom-1/4 h-56 w-56 rounded-full bg-mystery-accent/5 blur-3xl animate-float" style={{ animationDelay: "3s" }} />
+        <div className="absolute right-1/4 bottom-1/4 h-56 w-56 rounded-full bg-accent/5 blur-3xl animate-float" style={{ animationDelay: "3s" }} />
       </div>
 
       <div className="relative z-10 w-full max-w-md space-y-8">
@@ -139,6 +214,13 @@ const VisitorPage = () => {
                 action: () => setStep("message"),
                 color: "text-mystery-warm",
               },
+              {
+                icon: Sparkles,
+                label: "Send a coded signal",
+                desc: "Communicate through mystery buttons",
+                action: () => setStep("coded_chat"),
+                color: "text-primary",
+              },
             ].map(({ icon: Icon, label, desc, action, color }) => (
               <button
                 key={label}
@@ -155,6 +237,46 @@ const VisitorPage = () => {
                 </div>
               </button>
             ))}
+          </div>
+        )}
+
+        {step === "coded_chat" && (
+          <div className="space-y-5 animate-slide-up">
+            <div className="text-center space-y-2">
+              <Sparkles className="mx-auto h-8 w-8 text-primary" />
+              <h2 className="text-xl font-bold">Coded Signals</h2>
+              <p className="text-sm text-muted-foreground">Choose a signal. No words needed.</p>
+            </div>
+
+            {CODED_CHAT_CATEGORIES.map((cat) => (
+              <div key={cat.label} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <cat.icon className={`h-4 w-4 ${cat.color}`} />
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    {cat.label}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {cat.buttons.map((btn) => (
+                    <button
+                      key={btn.type}
+                      onClick={() => sendInteraction(btn.type)}
+                      disabled={sending}
+                      className={`rounded-lg border ${cat.bgColor} p-3 text-sm text-left hover:opacity-80 transition-all`}
+                    >
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={() => setStep("actions")}
+              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← Back
+            </button>
           </div>
         )}
 
