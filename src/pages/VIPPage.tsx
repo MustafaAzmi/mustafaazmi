@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,17 +22,18 @@ const VIPPage = () => {
   const [txId, setTxId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && (!user || !profile)) {
+      navigate("/");
+    }
+  }, [loading, user, profile, navigate]);
+
+  if (loading || !user || !profile) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Crown className="h-8 w-8 animate-pulse-slow text-mystery-warm" />
       </div>
     );
-  }
-
-  if (!user || !profile) {
-    navigate("/");
-    return null;
   }
 
   const handleCryptoSubmit = async () => {
