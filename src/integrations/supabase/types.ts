@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      chat_messages: {
+        Row: {
+          anonymous_id: string
+          created_at: string
+          id: string
+          message: string
+          profile_id: string
+          sender_type: string
+        }
+        Insert: {
+          anonymous_id: string
+          created_at?: string
+          id?: string
+          message: string
+          profile_id: string
+          sender_type: string
+        }
+        Update: {
+          anonymous_id?: string
+          created_at?: string
+          id?: string
+          message?: string
+          profile_id?: string
+          sender_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guesses: {
         Row: {
           created_at: string
