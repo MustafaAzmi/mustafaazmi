@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Eye, Lock, Unlock, Brain, MessageCircle, Heart,
+  Eye, Lock, Brain, MessageCircle, Heart,
   HelpCircle, MapPin, Smartphone, Clock, Sparkles, User
 } from "lucide-react";
+import ChatBox from "@/components/ChatBox";
 
 interface ShadowInteraction {
   id: string;
@@ -29,6 +30,7 @@ interface ShadowProfileCardProps {
   onOpenPuzzle: (anonymousId: string) => void;
   onGuess: (anonymousId: string, guess: string) => void;
   ownerCity?: string | null;
+  profileId: string;
 }
 
 const ShadowProfileCard = ({
@@ -38,10 +40,12 @@ const ShadowProfileCard = ({
   onOpenPuzzle,
   onGuess,
   ownerCity,
+  profileId,
 }: ShadowProfileCardProps) => {
   const [guessMode, setGuessMode] = useState(false);
   const [guessText, setGuessText] = useState("");
   const [guessResponse, setGuessResponse] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const latest = interactions[0];
   const count = interactions.length;
@@ -53,33 +57,12 @@ const ShadowProfileCard = ({
   const isRecent = timeDiff < 3600000;
   const sameCity = ownerCity && city && city.toLowerCase() === ownerCity.toLowerCase();
 
-  // Generate mystery hints based on data
   const mysteryHints: { icon: typeof Eye; text: string; revealed: boolean }[] = [
-    {
-      icon: Clock,
-      text: isRecent ? "Sent recently" : "From the past…",
-      revealed: true,
-    },
-    {
-      icon: Eye,
-      text: isRepeat ? "This is not their first interaction" : "A first-time visitor",
-      revealed: true,
-    },
-    {
-      icon: MapPin,
-      text: sameCity ? "This person is closer than you think" : "From a distant place",
-      revealed: unlockedHints.length >= 1,
-    },
-    {
-      icon: Smartphone,
-      text: device === "mobile" ? "Reached out from a handheld device" : "Sent from a larger screen",
-      revealed: unlockedHints.length >= 2,
-    },
-    {
-      icon: Heart,
-      text: count >= 5 ? "Deeply curious about you" : count >= 3 ? "Growing interest" : "Casual observer",
-      revealed: unlockedHints.length >= 3,
-    },
+    { icon: Clock, text: isRecent ? "Sent recently" : "From the past…", revealed: true },
+    { icon: Eye, text: isRepeat ? "This is not their first interaction" : "A first-time visitor", revealed: true },
+    { icon: MapPin, text: sameCity ? "This person is closer than you think" : "From a distant place", revealed: unlockedHints.length >= 1 },
+    { icon: Smartphone, text: device === "mobile" ? "Reached out from a handheld device" : "Sent from a larger screen", revealed: unlockedHints.length >= 2 },
+    { icon: Heart, text: count >= 5 ? "Deeply curious about you" : count >= 3 ? "Growing interest" : "Casual observer", revealed: unlockedHints.length >= 3 },
   ];
 
   const interactionIcons: Record<string, { icon: typeof Eye; color: string }> = {
@@ -118,9 +101,7 @@ const ShadowProfileCard = ({
         <div className="flex gap-1">
           {interactions.slice(0, 3).map((interaction, i) => {
             const config = interactionIcons[interaction.interaction_type] || { icon: HelpCircle, color: "text-muted-foreground" };
-            return (
-              <config.icon key={i} className={`h-4 w-4 ${config.color}`} />
-            );
+            return <config.icon key={i} className={`h-4 w-4 ${config.color}`} />;
           })}
         </div>
       </div>
@@ -132,9 +113,7 @@ const ShadowProfileCard = ({
             .filter((i) => i.interaction_type === "message" && i.message)
             .slice(0, 2)
             .map((i) => (
-              <p key={i.id} className="text-sm text-muted-foreground italic">
-                "{i.message}"
-              </p>
+              <p key={i.id} className="text-sm text-muted-foreground italic">"{i.message}"</p>
             ))}
         </div>
       )}
@@ -170,7 +149,6 @@ const ShadowProfileCard = ({
           </div>
         ))}
 
-        {/* Unlocked hints from puzzles */}
         {unlockedHints.map((hint, i) => (
           <div key={i} className="flex items-center gap-2 text-sm">
             <Sparkles className="h-3.5 w-3.5 text-mystery-warm" />
@@ -193,13 +171,32 @@ const ShadowProfileCard = ({
         <Button
           variant="outline"
           size="sm"
+          onClick={() => setChatOpen(!chatOpen)}
+          className="flex-1 border-mystery-warm/20 hover:bg-mystery-warm/10 text-xs"
+        >
+          <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+          {chatOpen ? "Close chat" : "Reply"}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => setGuessMode(!guessMode)}
           className="flex-1 border-mystery-accent/20 hover:bg-accent/10 text-xs"
         >
           <HelpCircle className="mr-1.5 h-3.5 w-3.5" />
-          Guess who
+          Guess
         </Button>
       </div>
+
+      {/* Chat Box */}
+      {chatOpen && (
+        <ChatBox
+          profileId={profileId}
+          anonymousId={anonymousId}
+          senderType="owner"
+          onClose={() => setChatOpen(false)}
+        />
+      )}
 
       {/* Guess mode */}
       {guessMode && (
@@ -217,9 +214,7 @@ const ShadowProfileCard = ({
             </Button>
           </div>
           {guessResponse && (
-            <p className="text-xs text-mystery-accent italic animate-fade-in">
-              {guessResponse}
-            </p>
+            <p className="text-xs text-mystery-accent italic animate-fade-in">{guessResponse}</p>
           )}
         </div>
       )}

@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Eye, Heart, HelpCircle, MessageCircle, Send, MapPin, Users, Clock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import ChatBox from "@/components/ChatBox";
 
-type Step = "loading" | "intro" | "actions" | "message" | "coded_chat" | "sent";
+type Step = "loading" | "intro" | "actions" | "message" | "coded_chat" | "sent" | "chat";
 
 const CODED_CHAT_CATEGORIES = [
   {
@@ -91,17 +92,13 @@ const VisitorPage = () => {
     };
     fetchProfile();
 
-    // Fetch city-level geolocation
     fetch("https://ip-api.com/json/?fields=city")
       .then((r) => r.json())
       .then((d) => { if (d.city) setCity(d.city); })
       .catch(() => {});
   }, [username]);
 
-  const sendInteraction = async (
-    type: string,
-    msg?: string
-  ) => {
+  const sendInteraction = async (type: string, msg?: string) => {
     if (!profileId) return;
 
     if (msg && /\d{7,}/.test(msg.replace(/[\s\-\(\)]/g, ""))) {
@@ -114,11 +111,12 @@ const VisitorPage = () => {
     }
 
     setSending(true);
+    const anonymousId = getAnonymousId();
     const { error } = await supabase.from("interactions").insert({
       profile_id: profileId,
       interaction_type: type as any,
       message: msg || null,
-      anonymous_id: getAnonymousId(),
+      anonymous_id: anonymousId,
       device_type: getDeviceType(),
       city: city,
       session_fingerprint: getFingerprint(),
@@ -128,7 +126,12 @@ const VisitorPage = () => {
     if (error) {
       toast.error("Something went wrong…");
     } else {
-      setStep("sent");
+      // For message or coded signal, go to chat
+      if (type === "message" || type.startsWith("proximity_") || type.startsWith("time_") || type.startsWith("relationship_")) {
+        setStep("chat");
+      } else {
+        setStep("sent");
+      }
     }
   };
 
@@ -167,7 +170,6 @@ const VisitorPage = () => {
               <Eye className="h-4 w-4 text-primary" />
               You're being watched too…
             </div>
-
             <div className="space-y-3">
               <h1 className="text-3xl font-bold">
                 You found <span className="text-primary text-glow">@{username}</span>'s page
@@ -176,11 +178,7 @@ const VisitorPage = () => {
                 Not everyone speaks… some people watch silently 👀
               </p>
             </div>
-
-            <Button
-              onClick={() => setStep("actions")}
-              className="h-12 px-8 text-base bg-primary hover:bg-primary/90 border-glow"
-            >
+            <Button onClick={() => setStep("actions")} className="h-12 px-8 text-base bg-primary hover:bg-primary/90 border-glow">
               Enter the mystery
             </Button>
           </div>
@@ -191,36 +189,11 @@ const VisitorPage = () => {
             <p className="text-center text-sm text-muted-foreground mb-6">
               What do you want to do? They'll never know who you are…
             </p>
-
             {[
-              {
-                icon: Heart,
-                label: "I'm interested",
-                desc: "Let them know someone cares",
-                action: () => sendInteraction("interested"),
-                color: "text-pink-400",
-              },
-              {
-                icon: HelpCircle,
-                label: "I'm curious",
-                desc: "You're just… watching",
-                action: () => sendInteraction("curious"),
-                color: "text-mystery-accent",
-              },
-              {
-                icon: MessageCircle,
-                label: "I have something to say",
-                desc: "Send a hidden message",
-                action: () => setStep("message"),
-                color: "text-mystery-warm",
-              },
-              {
-                icon: Sparkles,
-                label: "Send a coded signal",
-                desc: "Communicate through mystery buttons",
-                action: () => setStep("coded_chat"),
-                color: "text-primary",
-              },
+              { icon: Heart, label: "I'm interested", desc: "Let them know someone cares", action: () => sendInteraction("interested"), color: "text-pink-400" },
+              { icon: HelpCircle, label: "I'm curious", desc: "You're just… watching", action: () => sendInteraction("curious"), color: "text-mystery-accent" },
+              { icon: MessageCircle, label: "I have something to say", desc: "Send a hidden message", action: () => setStep("message"), color: "text-mystery-warm" },
+              { icon: Sparkles, label: "Send a coded signal", desc: "Communicate through mystery buttons", action: () => setStep("coded_chat"), color: "text-primary" },
             ].map(({ icon: Icon, label, desc, action, color }) => (
               <button
                 key={label}
@@ -247,14 +220,11 @@ const VisitorPage = () => {
               <h2 className="text-xl font-bold">Coded Signals</h2>
               <p className="text-sm text-muted-foreground">Choose a signal. No words needed.</p>
             </div>
-
             {CODED_CHAT_CATEGORIES.map((cat) => (
               <div key={cat.label} className="space-y-2">
                 <div className="flex items-center gap-2">
                   <cat.icon className={`h-4 w-4 ${cat.color}`} />
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    {cat.label}
-                  </span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{cat.label}</span>
                 </div>
                 <div className="grid grid-cols-1 gap-2">
                   {cat.buttons.map((btn) => (
@@ -270,13 +240,7 @@ const VisitorPage = () => {
                 </div>
               </div>
             ))}
-
-            <button
-              onClick={() => setStep("actions")}
-              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              ← Back
-            </button>
+            <button onClick={() => setStep("actions")} className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors">← Back</button>
           </div>
         )}
 
@@ -287,7 +251,6 @@ const VisitorPage = () => {
               <h2 className="text-xl font-bold">Say something anonymous</h2>
               <p className="text-sm text-muted-foreground">They'll receive it… but never know it's you</p>
             </div>
-
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -296,7 +259,6 @@ const VisitorPage = () => {
               maxLength={500}
             />
             <p className="text-xs text-muted-foreground text-right">{message.length}/500</p>
-
             <Button
               onClick={() => sendInteraction("message", message)}
               disabled={sending || message.trim().length === 0}
@@ -305,13 +267,25 @@ const VisitorPage = () => {
               <Send className="mr-2 h-4 w-4" />
               {sending ? "Sending…" : "Send anonymously"}
             </Button>
+            <button onClick={() => setStep("actions")} className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors">← Back</button>
+          </div>
+        )}
 
-            <button
-              onClick={() => setStep("actions")}
-              className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              ← Back
-            </button>
+        {step === "chat" && profileId && (
+          <div className="space-y-4 animate-slide-up">
+            <div className="text-center space-y-2">
+              <MessageCircle className="mx-auto h-8 w-8 text-primary" />
+              <h2 className="text-xl font-bold">Signal delivered!</h2>
+              <p className="text-sm text-muted-foreground">
+                You can continue chatting anonymously. They may reply…
+              </p>
+            </div>
+            <ChatBox
+              profileId={profileId}
+              anonymousId={getAnonymousId()}
+              senderType="visitor"
+            />
+            <button onClick={() => setStep("actions")} className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors">← Send another signal</button>
           </div>
         )}
 
@@ -322,13 +296,9 @@ const VisitorPage = () => {
             </div>
             <div className="space-y-3">
               <h2 className="text-2xl font-bold text-glow">Delivered into the shadows</h2>
-              <p className="text-muted-foreground text-lg">
-                This interaction might mean more than you think…
-              </p>
+              <p className="text-muted-foreground text-lg">This interaction might mean more than you think…</p>
             </div>
-            <p className="text-sm text-muted-foreground animate-pulse-slow">
-              They'll see something… but not everything 👀
-            </p>
+            <p className="text-sm text-muted-foreground animate-pulse-slow">They'll see something… but not everything 👀</p>
           </div>
         )}
       </div>
