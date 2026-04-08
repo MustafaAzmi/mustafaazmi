@@ -157,11 +157,31 @@ const Dashboard = () => {
     return acc;
   }, {});
 
+  // Seeded shuffle for per-user puzzle randomization
+  const shufflePuzzles = (puzzleList: Puzzle[], seed: string): Puzzle[] => {
+    const arr = [...puzzleList];
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+      hash |= 0;
+    }
+    for (let i = arr.length - 1; i > 0; i--) {
+      hash = ((hash << 5) - hash) + i;
+      hash |= 0;
+      const j = Math.abs(hash) % (i + 1);
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
   const getNextPuzzle = (anonId: string): Puzzle | null => {
     const solvedForAnon = unlockedHints
       .filter((h) => h.anonymousId === anonId)
       .map((h) => h.puzzleId);
-    return puzzles.find((p) => !solvedForAnon.includes(p.id)) || null;
+    // Shuffle puzzles uniquely per user+anonId combination
+    const seed = (user?.id || "") + anonId;
+    const shuffled = shufflePuzzles(puzzles, seed);
+    return shuffled.find((p) => !solvedForAnon.includes(p.id)) || null;
   };
 
   const handleOpenPuzzle = (anonId: string) => {
