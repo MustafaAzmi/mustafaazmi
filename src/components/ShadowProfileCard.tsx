@@ -162,12 +162,6 @@ const ShadowProfileCard = ({
           </div>
         ))}
 
-        {unlockedHints.map((hint, i) => (
-          <div key={i} className="flex items-center gap-2 text-sm">
-            <Sparkles className="h-3.5 w-3.5 text-mystery-warm" />
-            <span className="text-mystery-warm">{hint.hint}</span>
-          </div>
-        ))}
       </div>
 
       {/* Actions */}
