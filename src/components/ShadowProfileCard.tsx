@@ -57,12 +57,25 @@ const ShadowProfileCard = ({
   const isRecent = timeDiff < 3600000;
   const sameCity = ownerCity && city && city.toLowerCase() === ownerCity.toLowerCase();
 
+  const firstSeen = new Date(interactions[interactions.length - 1].created_at);
+  const lastSeen = new Date(latest.created_at);
+  const fingerprint = interactions.find((i) => i.session_fingerprint)?.session_fingerprint;
+  const totalVisits = count;
+
+  // Real data hints - progressively revealed by puzzle count
   const mysteryHints: { icon: typeof Eye; text: string; revealed: boolean }[] = [
-    { icon: Clock, text: isRecent ? "Sent recently" : "From the past…", revealed: true },
-    { icon: Eye, text: isRepeat ? "This is not their first interaction" : "A first-time visitor", revealed: true },
-    { icon: MapPin, text: sameCity ? "This person is closer than you think" : "From a distant place", revealed: unlockedHints.length >= 1 },
-    { icon: Smartphone, text: device === "mobile" ? "Reached out from a handheld device" : "Sent from a larger screen", revealed: unlockedHints.length >= 2 },
-    { icon: Heart, text: count >= 5 ? "Deeply curious about you" : count >= 3 ? "Growing interest" : "Casual observer", revealed: unlockedHints.length >= 3 },
+    { icon: Clock, text: isRecent ? "Active recently" : "Last seen a while ago", revealed: true },
+    { icon: Eye, text: `Total visits: ${totalVisits}`, revealed: true },
+    // Level 1 puzzle → city/location
+    { icon: MapPin, text: city ? `📍 Location: ${city}` : "📍 Location: Unknown region", revealed: unlockedHints.length >= 1 },
+    // Level 2 puzzle → device info
+    { icon: Smartphone, text: device ? `📱 Device: ${device}` : "📱 Device: Undetected", revealed: unlockedHints.length >= 2 },
+    // Level 3 puzzle → first seen timestamp
+    { icon: Clock, text: `🕐 First visited: ${firstSeen.toLocaleDateString()} at ${firstSeen.toLocaleTimeString()}`, revealed: unlockedHints.length >= 3 },
+    // Level 4 puzzle → session fingerprint (partial)
+    { icon: Eye, text: fingerprint ? `🔑 Session ID: ${fingerprint.slice(0, 8)}…${fingerprint.slice(-4)}` : "🔑 Session: No fingerprint", revealed: unlockedHints.length >= 4 },
+    // Level 5 puzzle → proximity hint based on same city
+    { icon: Heart, text: sameCity ? "⚠️ This person is in YOUR city!" : city ? `🌍 Distance: Different region (${city})` : "🌍 Distance: Cannot determine", revealed: unlockedHints.length >= 5 },
   ];
 
   const interactionIcons: Record<string, { icon: typeof Eye; color: string }> = {
