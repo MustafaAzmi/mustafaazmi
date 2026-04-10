@@ -160,6 +160,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          is_blocked: boolean
           is_vip: boolean
           user_id: string
           username: string
@@ -168,6 +169,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          is_blocked?: boolean
           is_vip?: boolean
           user_id: string
           username: string
@@ -176,6 +178,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          is_blocked?: boolean
           is_vip?: boolean
           user_id?: string
           username?: string
