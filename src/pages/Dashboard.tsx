@@ -293,6 +293,7 @@ const Dashboard = () => {
                   .map((h) => ({ puzzleId: h.puzzleId, hint: h.hint }))}
                 onOpenPuzzle={handleOpenPuzzle}
                 onGuess={handleGuess}
+                ownerDisplayName={profile.display_name}
                 profileId={profile.id}
               />
             ))}
