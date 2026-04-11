@@ -11,6 +11,7 @@ const Index = () => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"idle" | "signup" | "signin">("idle");
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
