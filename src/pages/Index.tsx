@@ -43,7 +43,7 @@ const Index = () => {
           toast.error("Username: letters, numbers, underscores only");
           return;
         }
-        await signUp(email, password, username);
+        await signUp(email, password, username, displayName);
         toast.success("Account created. Check your email to confirm.");
       } else {
         await signIn(email, password);
@@ -110,23 +110,39 @@ const Index = () => {
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4 animate-slide-up">
             {mode === "signup" && (
-              <div className="space-y-2">
-                <label className="text-sm text-muted-foreground">Choose your username</label>
-                <Input
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                  placeholder="your_mystery_name"
-                  className="h-12 bg-card/50 border-border/50 font-mono"
-                  required
-                  minLength={3}
-                  maxLength={20}
-                />
-                {username.length >= 3 && (
-                  <p className="text-xs text-muted-foreground">
-                    Your link: <span className="text-primary font-mono">{window.location.origin}/{username}</span>
+              <>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Your real name (hidden until unlocked)</label>
+                  <Input
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your real name"
+                    className="h-12 bg-card/50 border-border/50"
+                    required
+                    minLength={2}
+                  />
+                  <p className="text-xs text-muted-foreground/60">
+                    🔒 Your name stays invisible — only revealed through puzzles
                   </p>
-                )}
-              </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">Choose your username</label>
+                  <Input
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    placeholder="your_mystery_name"
+                    className="h-12 bg-card/50 border-border/50 font-mono"
+                    required
+                    minLength={3}
+                    maxLength={20}
+                  />
+                  {username.length >= 3 && (
+                    <p className="text-xs text-muted-foreground">
+                      Your link: <span className="text-primary font-mono">{window.location.origin}/{username}</span>
+                    </p>
+                  )}
+                </div>
+              </>
             )}
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground">Email</label>
