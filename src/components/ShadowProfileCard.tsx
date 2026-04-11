@@ -40,6 +40,7 @@ const ShadowProfileCard = ({
   unlockedHints,
   onOpenPuzzle,
   onGuess,
+  ownerCity,
   ownerDisplayName,
   profileId,
 }: ShadowProfileCardProps) => {
