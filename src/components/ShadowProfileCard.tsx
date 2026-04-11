@@ -30,6 +30,7 @@ interface ShadowProfileCardProps {
   onOpenPuzzle: (anonymousId: string) => void;
   onGuess: (anonymousId: string, guess: string) => void;
   ownerCity?: string | null;
+  ownerDisplayName?: string | null;
   profileId: string;
 }
 
@@ -40,6 +41,7 @@ const ShadowProfileCard = ({
   onOpenPuzzle,
   onGuess,
   ownerCity,
+  ownerDisplayName,
   profileId,
 }: ShadowProfileCardProps) => {
   const [guessMode, setGuessMode] = useState(false);
@@ -76,6 +78,8 @@ const ShadowProfileCard = ({
     { icon: Eye, text: fingerprint ? `🔑 Session ID: ${fingerprint.slice(0, 8)}…${fingerprint.slice(-4)}` : "🔑 Session: No fingerprint", revealed: unlockedHints.length >= 4 },
     // Level 5 puzzle → proximity hint based on same city
     { icon: Heart, text: sameCity ? "⚠️ This person is in YOUR city!" : city ? `🌍 Distance: Different region (${city})` : "🌍 Distance: Cannot determine", revealed: unlockedHints.length >= 5 },
+    // Level 6 puzzle → owner's real name (hardest unlock)
+    { icon: Sparkles, text: ownerDisplayName ? `👤 Profile owner: ${ownerDisplayName}` : "👤 Name: Not provided", revealed: unlockedHints.length >= 6 },
   ];
 
   const interactionIcons: Record<string, { icon: typeof Eye; color: string }> = {
