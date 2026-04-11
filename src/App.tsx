@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import VIPPage from "./pages/VIPPage";
 import AdminDashboard from "./pages/AdminDashboard";
 import VisitorPage from "./pages/VisitorPage";
+import ProfileSettings from "./pages/ProfileSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/vip" element={<VIPPage />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/settings" element={<ProfileSettings />} />
             <Route path="/:username" element={<VisitorPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

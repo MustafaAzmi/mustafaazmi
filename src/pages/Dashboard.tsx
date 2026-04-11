@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Eye, LogOut, Link2, Copy, Zap, Crown, Shield } from "lucide-react";
+import { Eye, LogOut, Link2, Copy, Zap, Crown, Shield, Settings } from "lucide-react";
 import { toast } from "sonner";
 import ShadowProfileCard from "@/components/ShadowProfileCard";
 import PuzzleModal from "@/components/PuzzleModal";
@@ -237,6 +237,9 @@ const Dashboard = () => {
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => navigate("/vip")} title="VIP">
               <Crown className="h-5 w-5 text-mystery-warm" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="Settings">
+              <Settings className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} title="Admin">
               <Shield className="h-5 w-5" />
