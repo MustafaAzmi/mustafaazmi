@@ -300,6 +300,12 @@ const VisitorPage = () => {
               <p className="text-muted-foreground text-lg">This interaction might mean more than you think…</p>
             </div>
             <p className="text-sm text-muted-foreground animate-pulse-slow">They'll see something… but not everything 👀</p>
+            <div className="pt-4 border-t border-border/30 space-y-3">
+              <p className="text-sm text-muted-foreground">Want your own mystery page?</p>
+              <Button onClick={() => navigate("/")} className="h-10 px-6 bg-primary hover:bg-primary/90 border-glow">
+                Create your page
+              </Button>
+            </div>
           </div>
         )}
       </div>
