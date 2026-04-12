@@ -69,6 +69,7 @@ function getFingerprint(): string {
 
 const VisitorPage = () => {
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("loading");
   const [message, setMessage] = useState("");
