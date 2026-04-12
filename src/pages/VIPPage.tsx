@@ -128,7 +128,7 @@ const VIPPage = () => {
         {/* Price */}
         <div className="text-center space-y-1">
           <p className="text-4xl font-bold text-mystery-warm">${vipPrice}</p>
-          <p className="text-sm text-muted-foreground">one-time unlock • lifetime access</p>
+          <p className="text-sm text-muted-foreground">per month • unlimited messaging & features</p>
         </div>
 
         {/* Stripe */}
