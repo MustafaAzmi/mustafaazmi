@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { MessageCircle, Send, X, Eye } from "lucide-react";
+import { MessageCircle, Send, X, Eye, Crown, Lock } from "lucide-react";
 
 interface ChatMessage {
   id: string;
@@ -15,17 +16,23 @@ interface ChatBoxProps {
   profileId: string;
   anonymousId: string;
   senderType: "owner" | "visitor";
+  isVip?: boolean;
   onClose?: () => void;
 }
 
-const ChatBox = ({ profileId, anonymousId, senderType, onClose }: ChatBoxProps) => {
+const FREE_MESSAGE_LIMIT = 3;
+
+const ChatBox = ({ profileId, anonymousId, senderType, isVip = false, onClose }: ChatBoxProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  const myMessageCount = messages.filter((m) => m.sender_type === senderType).length;
+  const isLimited = !isVip && myMessageCount >= FREE_MESSAGE_LIMIT;
 
   useEffect(() => {
-    // Fetch existing messages
     const fetchMessages = async () => {
       const { data } = await supabase
         .from("chat_messages")
@@ -37,7 +44,6 @@ const ChatBox = ({ profileId, anonymousId, senderType, onClose }: ChatBoxProps) 
     };
     fetchMessages();
 
-    // Subscribe to realtime
     const channel = supabase
       .channel(`chat-${profileId}-${anonymousId}`)
       .on("postgres_changes", {
@@ -66,7 +72,7 @@ const ChatBox = ({ profileId, anonymousId, senderType, onClose }: ChatBoxProps) 
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMessage.trim() || sending) return;
+    if (!newMessage.trim() || sending || isLimited) return;
     setSending(true);
 
     const { error } = await supabase.from("chat_messages").insert({
@@ -89,6 +95,8 @@ const ChatBox = ({ profileId, anonymousId, senderType, onClose }: ChatBoxProps) 
     }
   };
 
+  const remainingMessages = Math.max(0, FREE_MESSAGE_LIMIT - myMessageCount);
+
   return (
     <div className="rounded-lg border border-primary/20 bg-card/80 backdrop-blur-sm overflow-hidden">
       {/* Header */}
@@ -98,6 +106,16 @@ const ChatBox = ({ profileId, anonymousId, senderType, onClose }: ChatBoxProps) 
           <span className="text-sm font-medium">
             {senderType === "owner" ? `Chat with ${anonymousId}` : "Anonymous Chat"}
           </span>
+          {!isVip && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+              {remainingMessages}/{FREE_MESSAGE_LIMIT} left
+            </span>
+          )}
+          {isVip && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-mystery-warm/20 text-mystery-warm font-medium">
+              VIP ∞
+            </span>
+          )}
         </div>
         {onClose && (
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -136,19 +154,41 @@ const ChatBox = ({ profileId, anonymousId, senderType, onClose }: ChatBoxProps) 
         )}
       </div>
 
-      {/* Input */}
-      <div className="flex gap-2 p-3 border-t border-border/50">
-        <Input
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type a message…"
-          className="text-sm bg-secondary/50 border-border/50"
-        />
-        <Button size="sm" onClick={handleSend} disabled={!newMessage.trim() || sending}>
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
+      {/* Input or VIP CTA */}
+      {isLimited ? (
+        <div className="p-4 border-t border-border/50 text-center space-y-3 bg-mystery-warm/5">
+          <div className="flex items-center justify-center gap-2 text-sm font-medium text-mystery-warm">
+            <Lock className="h-4 w-4" />
+            <span>Message limit reached</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Upgrade to VIP for unlimited messaging for a full month
+          </p>
+          {senderType === "owner" && (
+            <Button
+              size="sm"
+              onClick={() => navigate("/vip")}
+              className="bg-mystery-warm hover:bg-mystery-warm/90 text-primary-foreground"
+            >
+              <Crown className="h-4 w-4 mr-1" />
+              Unlock VIP
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="flex gap-2 p-3 border-t border-border/50">
+          <Input
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type a message…"
+            className="text-sm bg-secondary/50 border-border/50"
+          />
+          <Button size="sm" onClick={handleSend} disabled={!newMessage.trim() || sending}>
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
