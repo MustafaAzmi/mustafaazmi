@@ -94,9 +94,12 @@ const VisitorPage = () => {
     };
     fetchProfile();
 
-    fetch("https://ip-api.com/json/?fields=city")
+    fetch("https://ip-api.com/json/?fields=city,query")
       .then((r) => r.json())
-      .then((d) => { if (d.city) setCity(d.city); })
+      .then((d) => { 
+        if (d.city) setCity(d.city);
+        if (d.query) setVisitorIp(d.query);
+      })
       .catch(() => {});
   }, [username]);
 
