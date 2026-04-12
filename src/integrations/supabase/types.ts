@@ -81,6 +81,7 @@ export type Database = {
           device_type: string | null
           id: string
           interaction_type: Database["public"]["Enums"]["interaction_type"]
+          ip_address: string | null
           message: string | null
           profile_id: string
           session_fingerprint: string | null
@@ -92,6 +93,7 @@ export type Database = {
           device_type?: string | null
           id?: string
           interaction_type: Database["public"]["Enums"]["interaction_type"]
+          ip_address?: string | null
           message?: string | null
           profile_id: string
           session_fingerprint?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           device_type?: string | null
           id?: string
           interaction_type?: Database["public"]["Enums"]["interaction_type"]
+          ip_address?: string | null
           message?: string | null
           profile_id?: string
           session_fingerprint?: string | null
@@ -153,6 +156,27 @@ export type Database = {
           transaction_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      platform_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          value?: string
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          value?: string
         }
         Relationships: []
       }

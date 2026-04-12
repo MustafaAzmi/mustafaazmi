@@ -75,6 +75,7 @@ const VisitorPage = () => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [city, setCity] = useState<string | null>(null);
+  const [visitorIp, setVisitorIp] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -93,9 +94,12 @@ const VisitorPage = () => {
     };
     fetchProfile();
 
-    fetch("https://ip-api.com/json/?fields=city")
+    fetch("https://ip-api.com/json/?fields=city,query")
       .then((r) => r.json())
-      .then((d) => { if (d.city) setCity(d.city); })
+      .then((d) => { 
+        if (d.city) setCity(d.city);
+        if (d.query) setVisitorIp(d.query);
+      })
       .catch(() => {});
   }, [username]);
 
@@ -121,6 +125,7 @@ const VisitorPage = () => {
       device_type: getDeviceType(),
       city: city,
       session_fingerprint: getFingerprint(),
+      ip_address: visitorIp,
     });
     setSending(false);
 

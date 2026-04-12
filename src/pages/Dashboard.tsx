@@ -56,7 +56,7 @@ const Dashboard = () => {
     if (!profile) return;
     const { data } = await supabase
       .from("interactions")
-      .select("id, interaction_type, message, created_at, anonymous_id, device_type, city, session_fingerprint")
+      .select("id, interaction_type, message, created_at, anonymous_id, device_type, city, session_fingerprint, ip_address")
       .eq("profile_id", profile.id)
       .order("created_at", { ascending: false });
 
