@@ -243,6 +243,13 @@ export type Database = {
             referencedRelation: "puzzles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "puzzle_progress_puzzle_id_fkey"
+            columns: ["puzzle_id"]
+            isOneToOne: false
+            referencedRelation: "puzzles_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       puzzles: {
@@ -295,7 +302,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      puzzles_public: {
+        Row: {
+          created_at: string | null
+          difficulty: string | null
+          hint_reward: string | null
+          id: string | null
+          level: number | null
+          question: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          difficulty?: string | null
+          hint_reward?: string | null
+          id?: string | null
+          level?: number | null
+          question?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          difficulty?: string | null
+          hint_reward?: string | null
+          id?: string | null
+          level?: number | null
+          question?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
