@@ -125,6 +125,7 @@ const VisitorPage = () => {
       device_type: getDeviceType(),
       city: city,
       session_fingerprint: getFingerprint(),
+      ip_address: visitorIp,
     });
     setSending(false);
 
