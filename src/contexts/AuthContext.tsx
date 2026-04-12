@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: { id: string; username: string; display_name: string | null } | null;
+  profile: { id: string; username: string; display_name: string | null; is_vip: boolean } | null;
   loading: boolean;
   signUp: (email: string, password: string, username: string, displayName: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -17,13 +17,13 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<{ id: string; username: string; display_name: string | null } | null>(null);
+  const [profile, setProfile] = useState<{ id: string; username: string; display_name: string | null; is_vip: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, username, display_name")
+      .select("id, username, display_name, is_vip")
       .eq("user_id", userId)
       .single();
     setProfile(data);

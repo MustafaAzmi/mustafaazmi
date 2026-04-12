@@ -298,6 +298,7 @@ const Dashboard = () => {
                 onGuess={handleGuess}
                 ownerDisplayName={profile.display_name}
                 profileId={profile.id}
+                isVip={profile.is_vip}
               />
             ))}
           </div>

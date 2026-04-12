@@ -33,6 +33,7 @@ interface ShadowProfileCardProps {
   ownerCity?: string | null;
   ownerDisplayName?: string | null;
   profileId: string;
+  isVip?: boolean;
 }
 
 const ShadowProfileCard = ({
@@ -44,6 +45,7 @@ const ShadowProfileCard = ({
   ownerCity,
   ownerDisplayName,
   profileId,
+  isVip = false,
 }: ShadowProfileCardProps) => {
   const [guessMode, setGuessMode] = useState(false);
   const [guessText, setGuessText] = useState("");
@@ -216,6 +218,7 @@ const ShadowProfileCard = ({
           profileId={profileId}
           anonymousId={anonymousId}
           senderType="owner"
+          isVip={isVip}
           onClose={() => setChatOpen(false)}
         />
       )}
