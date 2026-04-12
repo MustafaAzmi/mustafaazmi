@@ -286,7 +286,10 @@ const VisitorPage = () => {
               anonymousId={getAnonymousId()}
               senderType="visitor"
             />
-            <button onClick={() => setStep("actions")} className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors">← Send another signal</button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setStep("actions")} className="flex-1 text-sm text-muted-foreground hover:text-foreground transition-colors">← Send another signal</button>
+              <button onClick={() => navigate("/")} className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">Create your page →</button>
+            </div>
           </div>
         )}
 
