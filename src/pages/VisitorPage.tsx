@@ -75,6 +75,7 @@ const VisitorPage = () => {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [city, setCity] = useState<string | null>(null);
+  const [visitorIp, setVisitorIp] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
