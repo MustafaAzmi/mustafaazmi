@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Shield, Users, MessageCircle, Puzzle, ArrowLeft, CheckCircle,
-  XCircle, Clock, Ban, Trash2, Crown, Settings, CreditCard, RefreshCw
+  XCircle, Clock, Ban, Trash2, Crown, Settings, CreditCard, RefreshCw, Save
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,6 +50,15 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabType>("stats");
   const [confirmAction, setConfirmAction] = useState<{ type: string; id: string; label: string } | null>(null);
 
+  // Settings state
+  const [cryptoWallet, setCryptoWallet] = useState("");
+  const [cryptoNetwork, setCryptoNetwork] = useState("");
+  const [stripeEnabled, setStripeEnabled] = useState(false);
+  const [stripePriceId, setStripePriceId] = useState("");
+  const [vipPrice, setVipPrice] = useState("");
+  const [vipCurrency, setVipCurrency] = useState("");
+  const [savingSettings, setSavingSettings] = useState(false);
+
   useEffect(() => {
     if (!loading && !user) { navigate("/"); return; }
     if (!user) return;
@@ -65,6 +75,7 @@ const AdminDashboard = () => {
     fetchStats();
     fetchPayments();
     fetchUsers();
+    fetchSettings();
   };
 
   const fetchStats = async () => {
@@ -90,6 +101,41 @@ const AdminDashboard = () => {
   const fetchUsers = async () => {
     const { data } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
     if (data) setUsers(data as UserProfile[]);
+  };
+
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("platform_settings").select("key, value");
+    if (data) {
+      const s: Record<string, string> = {};
+      data.forEach((row: any) => { s[row.key] = row.value; });
+      setCryptoWallet(s.crypto_wallet_address || "");
+      setCryptoNetwork(s.crypto_network || "");
+      setStripeEnabled(s.stripe_enabled === "true");
+      setStripePriceId(s.stripe_price_id || "");
+      setVipPrice(s.vip_price || "9.99");
+      setVipCurrency(s.vip_currency || "USD");
+    }
+  };
+
+  const saveSettings = async () => {
+    setSavingSettings(true);
+    const updates = [
+      { key: "crypto_wallet_address", value: cryptoWallet },
+      { key: "crypto_network", value: cryptoNetwork },
+      { key: "stripe_enabled", value: stripeEnabled ? "true" : "false" },
+      { key: "stripe_price_id", value: stripePriceId },
+      { key: "vip_price", value: vipPrice },
+      { key: "vip_currency", value: vipCurrency },
+    ];
+
+    for (const u of updates) {
+      await supabase
+        .from("platform_settings")
+        .update({ value: u.value, updated_at: new Date().toISOString() })
+        .eq("key", u.key);
+    }
+    setSavingSettings(false);
+    toast.success("Settings saved!");
   };
 
   const updatePayment = async (id: string, status: "approved" | "rejected") => {
@@ -123,7 +169,6 @@ const AdminDashboard = () => {
   };
 
   const deleteUser = async (profile: UserProfile) => {
-    // Delete related data then the profile
     await Promise.all([
       supabase.from("interactions").delete().eq("profile_id", profile.id),
       supabase.from("chat_messages").delete().eq("profile_id", profile.id),
@@ -323,54 +368,102 @@ const AdminDashboard = () => {
 
         {/* Settings Tab */}
         {activeTab === "settings" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Crypto Settings */}
             <div className="rounded-lg border border-border/50 bg-card/50 p-5 space-y-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <CreditCard className="h-4 w-4 text-primary" /> Payment Methods
+                <span className="text-xl">₮</span> Crypto Payment Settings
               </h2>
-              <p className="text-sm text-muted-foreground">Configure which payment methods are available to users for VIP subscriptions.</p>
-
               <div className="space-y-3">
-                {/* Crypto USDT */}
-                <div className="rounded-lg border border-border/30 bg-secondary/30 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">₮</span>
-                      <div>
-                        <p className="text-sm font-medium">USDT (Crypto)</p>
-                        <p className="text-xs text-muted-foreground">Manual verification — user submits TX hash, admin approves</p>
-                      </div>
-                    </div>
-                    <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-400">Active</span>
-                  </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Wallet Address (USDT)</label>
+                  <Input
+                    value={cryptoWallet}
+                    onChange={(e) => setCryptoWallet(e.target.value)}
+                    placeholder="0x... or T..."
+                    className="bg-secondary/30 border-border/30 font-mono text-sm"
+                  />
                 </div>
-
-                {/* Stripe */}
-                <div className="rounded-lg border border-border/30 bg-secondary/30 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">💳</span>
-                      <div>
-                        <p className="text-sm font-medium">Stripe (Card)</p>
-                        <p className="text-xs text-muted-foreground">Automatic checkout — connect your Stripe account to enable</p>
-                      </div>
-                    </div>
-                    <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">Not connected</span>
-                  </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Network</label>
+                  <Input
+                    value={cryptoNetwork}
+                    onChange={(e) => setCryptoNetwork(e.target.value)}
+                    placeholder="TRC-20 / ERC-20"
+                    className="bg-secondary/30 border-border/30 text-sm"
+                  />
                 </div>
               </div>
             </div>
 
+            {/* Stripe Settings */}
             <div className="rounded-lg border border-border/50 bg-card/50 p-5 space-y-4">
               <h2 className="text-lg font-semibold flex items-center gap-2">
-                <Puzzle className="h-4 w-4 text-primary" /> Puzzle Settings
+                <span className="text-xl">💳</span> Stripe Settings
               </h2>
-              <p className="text-sm text-muted-foreground">Puzzles are randomized per visitor. Each shadow profile shows a unique puzzle order based on a combination of user ID and visitor ID.</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Total puzzles in database:</span>
-                <span className="text-sm font-medium">{stats.totalPuzzlesSolved} solved</span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Enable Stripe Payments</p>
+                    <p className="text-xs text-muted-foreground">Allow users to pay with card</p>
+                  </div>
+                  <button
+                    onClick={() => setStripeEnabled(!stripeEnabled)}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${stripeEnabled ? 'bg-green-500' : 'bg-muted'}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${stripeEnabled ? 'translate-x-5' : ''}`} />
+                  </button>
+                </div>
+                {stripeEnabled && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-muted-foreground font-medium">Stripe Price ID</label>
+                    <Input
+                      value={stripePriceId}
+                      onChange={(e) => setStripePriceId(e.target.value)}
+                      placeholder="price_..."
+                      className="bg-secondary/30 border-border/30 font-mono text-sm"
+                    />
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* VIP Pricing */}
+            <div className="rounded-lg border border-border/50 bg-card/50 p-5 space-y-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Crown className="h-4 w-4 text-mystery-warm" /> VIP Pricing
+              </h2>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Price</label>
+                  <Input
+                    value={vipPrice}
+                    onChange={(e) => setVipPrice(e.target.value)}
+                    placeholder="9.99"
+                    className="bg-secondary/30 border-border/30 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Currency</label>
+                  <Input
+                    value={vipCurrency}
+                    onChange={(e) => setVipCurrency(e.target.value)}
+                    placeholder="USD"
+                    className="bg-secondary/30 border-border/30 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <Button
+              onClick={saveSettings}
+              disabled={savingSettings}
+              className="w-full h-11 bg-primary hover:bg-primary/90"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {savingSettings ? "Saving…" : "Save All Settings"}
+            </Button>
           </div>
         )}
       </div>
