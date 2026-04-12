@@ -1,0 +1,1 @@
+ALTER VIEW public.puzzles_public SET (security_invoker = on);
