@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -69,6 +69,7 @@ function getFingerprint(): string {
 
 const VisitorPage = () => {
   const { username } = useParams<{ username: string }>();
+  const navigate = useNavigate();
   const [profileId, setProfileId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>("loading");
   const [message, setMessage] = useState("");
@@ -285,7 +286,10 @@ const VisitorPage = () => {
               anonymousId={getAnonymousId()}
               senderType="visitor"
             />
-            <button onClick={() => setStep("actions")} className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors">← Send another signal</button>
+            <div className="flex items-center gap-3">
+              <button onClick={() => setStep("actions")} className="flex-1 text-sm text-muted-foreground hover:text-foreground transition-colors">← Send another signal</button>
+              <button onClick={() => navigate("/")} className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">Create your page →</button>
+            </div>
           </div>
         )}
 
@@ -299,6 +303,12 @@ const VisitorPage = () => {
               <p className="text-muted-foreground text-lg">This interaction might mean more than you think…</p>
             </div>
             <p className="text-sm text-muted-foreground animate-pulse-slow">They'll see something… but not everything 👀</p>
+            <div className="pt-4 border-t border-border/30 space-y-3">
+              <p className="text-sm text-muted-foreground">Want your own mystery page?</p>
+              <Button onClick={() => navigate("/")} className="h-10 px-6 bg-primary hover:bg-primary/90 border-glow">
+                Create your page
+              </Button>
+            </div>
           </div>
         )}
       </div>
