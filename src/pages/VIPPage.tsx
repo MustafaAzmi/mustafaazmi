@@ -14,19 +14,41 @@ const VIP_FEATURES = [
   { icon: Zap, label: "Priority puzzles", desc: "Exclusive hard puzzles with powerful reveals" },
 ];
 
-const CRYPTO_WALLET = "0x742d35Cc6634C0532925a3b844Bc9e7595f2bD18";
-
 const VIPPage = () => {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
   const [txId, setTxId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [walletAddress, setWalletAddress] = useState("");
+  const [cryptoNetwork, setCryptoNetwork] = useState("");
+  const [vipPrice, setVipPrice] = useState("9.99");
+  const [vipCurrency, setVipCurrency] = useState("USD");
+  const [stripeEnabled, setStripeEnabled] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !profile)) {
       navigate("/");
     }
   }, [loading, user, profile, navigate]);
+
+  useEffect(() => {
+    // Fetch platform settings
+    const fetchSettings = async () => {
+      const { data } = await supabase
+        .from("platform_settings")
+        .select("key, value");
+      if (data) {
+        const settings: Record<string, string> = {};
+        data.forEach((s: any) => { settings[s.key] = s.value; });
+        setWalletAddress(settings.crypto_wallet_address || "");
+        setCryptoNetwork(settings.crypto_network || "TRC-20 / ERC-20");
+        setVipPrice(settings.vip_price || "9.99");
+        setVipCurrency(settings.vip_currency || "USD");
+        setStripeEnabled(settings.stripe_enabled === "true");
+      }
+    };
+    fetchSettings();
+  }, []);
 
   if (loading || !user || !profile) {
     return (
@@ -45,7 +67,7 @@ const VIPPage = () => {
     const { error } = await supabase.from("payment_requests").insert({
       user_id: user.id,
       method: "crypto",
-      amount: 9.99,
+      amount: parseFloat(vipPrice),
       currency: "USDT",
       transaction_id: txId.trim(),
     });
@@ -59,18 +81,21 @@ const VIPPage = () => {
   };
 
   const handleStripeCheckout = () => {
-    toast.info("Stripe payments coming soon! Use crypto for now.");
+    if (!stripeEnabled) {
+      toast.info("Card payments are not available yet. Use crypto for now.");
+      return;
+    }
+    toast.info("Stripe checkout coming soon!");
   };
 
   const copyWallet = () => {
-    navigator.clipboard.writeText(CRYPTO_WALLET);
+    navigator.clipboard.writeText(walletAddress);
     toast.success("Wallet address copied!");
   };
 
   return (
     <div className="min-h-screen px-4 py-8">
       <div className="mx-auto max-w-lg space-y-8">
-        {/* Back button */}
         <button onClick={() => navigate("/dashboard")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" /> Back to dashboard
         </button>
@@ -102,54 +127,57 @@ const VIPPage = () => {
 
         {/* Price */}
         <div className="text-center space-y-1">
-          <p className="text-4xl font-bold text-mystery-warm">$9.99</p>
+          <p className="text-4xl font-bold text-mystery-warm">${vipPrice}</p>
           <p className="text-sm text-muted-foreground">one-time unlock • lifetime access</p>
         </div>
 
         {/* Stripe */}
         <Button
           onClick={handleStripeCheckout}
-          className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground border-glow"
+          className={`w-full h-12 text-primary-foreground border-glow ${stripeEnabled ? 'bg-primary hover:bg-primary/90' : 'bg-muted text-muted-foreground'}`}
+          disabled={!stripeEnabled}
         >
           <Zap className="mr-2 h-4 w-4" />
-          Pay with Card (Coming Soon)
+          {stripeEnabled ? "Pay with Card" : "Pay with Card (Not Available)"}
         </Button>
 
         {/* Crypto */}
-        <div className="space-y-4 rounded-lg border border-border/50 bg-card/50 p-5">
-          <div className="text-center space-y-1">
-            <p className="font-medium text-sm">Pay with USDT (TRC-20 / ERC-20)</p>
-            <p className="text-xs text-muted-foreground">Send exactly $9.99 USDT to:</p>
-          </div>
+        {walletAddress && (
+          <div className="space-y-4 rounded-lg border border-border/50 bg-card/50 p-5">
+            <div className="text-center space-y-1">
+              <p className="font-medium text-sm">Pay with USDT ({cryptoNetwork})</p>
+              <p className="text-xs text-muted-foreground">Send exactly ${vipPrice} USDT to:</p>
+            </div>
 
-          <button
-            onClick={copyWallet}
-            className="w-full flex items-center gap-2 rounded-lg border border-border/30 bg-secondary/50 p-3 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors group"
-          >
-            <span className="truncate flex-1 text-left">{CRYPTO_WALLET}</span>
-            <Copy className="h-3 w-3 shrink-0 group-hover:text-primary" />
-          </button>
-
-          <div className="space-y-2">
-            <Input
-              value={txId}
-              onChange={(e) => setTxId(e.target.value)}
-              placeholder="Paste your transaction ID…"
-              className="bg-secondary/30 border-border/30 text-sm font-mono"
-            />
-            <Button
-              onClick={handleCryptoSubmit}
-              disabled={submitting || !txId.trim()}
-              className="w-full bg-mystery-warm hover:bg-mystery-warm/90 text-primary-foreground"
+            <button
+              onClick={copyWallet}
+              className="w-full flex items-center gap-2 rounded-lg border border-border/30 bg-secondary/50 p-3 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors group"
             >
-              {submitting ? "Submitting…" : "Submit Payment"}
-            </Button>
-          </div>
+              <span className="truncate flex-1 text-left">{walletAddress}</span>
+              <Copy className="h-3 w-3 shrink-0 group-hover:text-primary" />
+            </button>
 
-          <p className="text-xs text-muted-foreground text-center">
-            Payments are verified manually within 24 hours
-          </p>
-        </div>
+            <div className="space-y-2">
+              <Input
+                value={txId}
+                onChange={(e) => setTxId(e.target.value)}
+                placeholder="Paste your transaction ID…"
+                className="bg-secondary/30 border-border/30 text-sm font-mono"
+              />
+              <Button
+                onClick={handleCryptoSubmit}
+                disabled={submitting || !txId.trim()}
+                className="w-full bg-mystery-warm hover:bg-mystery-warm/90 text-primary-foreground"
+              >
+                {submitting ? "Submitting…" : "Submit Payment"}
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Payments are verified manually within 24 hours
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

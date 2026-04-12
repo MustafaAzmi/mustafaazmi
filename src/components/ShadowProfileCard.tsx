@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Eye, Lock, Brain, MessageCircle, Heart,
-  HelpCircle, MapPin, Smartphone, Clock, Sparkles, User
+  HelpCircle, MapPin, Smartphone, Clock, Sparkles, User, Globe, Ruler, Wifi
 } from "lucide-react";
 import ChatBox from "@/components/ChatBox";
 
@@ -16,6 +16,7 @@ interface ShadowInteraction {
   device_type: string | null;
   city: string | null;
   session_fingerprint: string | null;
+  ip_address?: string | null;
 }
 
 interface UnlockedHint {
@@ -52,34 +53,45 @@ const ShadowProfileCard = ({
   const latest = interactions[0];
   const count = interactions.length;
   const hasMessages = interactions.some((i) => i.interaction_type === "message");
-  const isRepeat = count > 1;
   const city = interactions.find((i) => i.city)?.city;
   const device = interactions.find((i) => i.device_type)?.device_type;
+  const ipAddress = interactions.find((i) => i.ip_address)?.ip_address;
   const timeDiff = Date.now() - new Date(latest.created_at).getTime();
   const isRecent = timeDiff < 3600000;
   const sameCity = ownerCity && city && city.toLowerCase() === ownerCity.toLowerCase();
 
   const firstSeen = new Date(interactions[interactions.length - 1].created_at);
-  const lastSeen = new Date(latest.created_at);
   const fingerprint = interactions.find((i) => i.session_fingerprint)?.session_fingerprint;
   const totalVisits = count;
 
+  // Calculate approximate distance text
+  const getDistanceText = () => {
+    if (!city) return "🌍 Distance: Cannot determine";
+    if (sameCity) return "⚠️ SAME CITY as you! Very close!";
+    if (ownerCity) return `🌍 Different city: ${city} (far from ${ownerCity})`;
+    return `🌍 Located in: ${city}`;
+  };
+
   // Real data hints - progressively revealed by puzzle count
   const mysteryHints: { icon: typeof Eye; text: string; revealed: boolean }[] = [
-    { icon: Clock, text: isRecent ? "Active recently" : "Last seen a while ago", revealed: true },
+    { icon: Clock, text: isRecent ? "🟢 Active right now" : `Last seen ${Math.floor(timeDiff / 60000)}m ago`, revealed: true },
     { icon: Eye, text: `Total visits: ${totalVisits}`, revealed: true },
-    // Level 1 puzzle → city/location
-    { icon: MapPin, text: city ? `📍 Location: ${city}` : "📍 Location: Unknown region", revealed: unlockedHints.length >= 1 },
-    // Level 2 puzzle → device info
+    // Level 1 → city/location
+    { icon: MapPin, text: city ? `📍 City: ${city}` : "📍 Location: Unknown region", revealed: unlockedHints.length >= 1 },
+    // Level 2 → device info
     { icon: Smartphone, text: device ? `📱 Device: ${device}` : "📱 Device: Undetected", revealed: unlockedHints.length >= 2 },
-    // Level 3 puzzle → first seen timestamp
+    // Level 3 → first seen timestamp
     { icon: Clock, text: `🕐 First visited: ${firstSeen.toLocaleDateString()} at ${firstSeen.toLocaleTimeString()}`, revealed: unlockedHints.length >= 3 },
-    // Level 4 puzzle → session fingerprint (partial)
-    { icon: Eye, text: fingerprint ? `🔑 Session ID: ${fingerprint.slice(0, 8)}…${fingerprint.slice(-4)}` : "🔑 Session: No fingerprint", revealed: unlockedHints.length >= 4 },
-    // Level 5 puzzle → proximity hint based on same city
-    { icon: Heart, text: sameCity ? "⚠️ This person is in YOUR city!" : city ? `🌍 Distance: Different region (${city})` : "🌍 Distance: Cannot determine", revealed: unlockedHints.length >= 5 },
-    // Level 6 puzzle → owner's real name (hardest unlock)
+    // Level 4 → session fingerprint
+    { icon: Eye, text: fingerprint ? `🔑 Session: ${fingerprint}` : "🔑 Session: No fingerprint", revealed: unlockedHints.length >= 4 },
+    // Level 5 → proximity/distance
+    { icon: Ruler, text: getDistanceText(), revealed: unlockedHints.length >= 5 },
+    // Level 6 → owner's real name
     { icon: Sparkles, text: ownerDisplayName ? `👤 Profile owner: ${ownerDisplayName}` : "👤 Name: Not provided", revealed: unlockedHints.length >= 6 },
+    // Level 7 → IP address
+    { icon: Globe, text: ipAddress ? `🌐 IP Address: ${ipAddress}` : "🌐 IP: Not captured", revealed: unlockedHints.length >= 7 },
+    // Level 8 → full distance calculation
+    { icon: Wifi, text: sameCity ? "🔴 THIS PERSON IS NEAR YOU RIGHT NOW" : city ? `📡 Signal origin: ${city} region` : "📡 Signal: Untraceable", revealed: unlockedHints.length >= 8 },
   ];
 
   const interactionIcons: Record<string, { icon: typeof Eye; color: string }> = {
@@ -160,12 +172,11 @@ const ShadowProfileCard = ({
             ) : (
               <>
                 <Lock className="h-3.5 w-3.5 text-muted-foreground/30" />
-                <span className="text-muted-foreground/30">Locked — solve a puzzle to reveal</span>
+                <span className="text-muted-foreground/30">🔒 Locked — solve puzzle {i - 1} to reveal</span>
               </>
             )}
           </div>
         ))}
-
       </div>
 
       {/* Actions */}
