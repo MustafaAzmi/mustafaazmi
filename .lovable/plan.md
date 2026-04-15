@@ -1,125 +1,67 @@
 
 
-# Psychological Anonymous Interaction Game — Full Build Plan
+## Problem Analysis
 
-This is a large-scale upgrade. To avoid errors and keep things working at each step, I recommend building in **3 phases**.
+1. **Location/IP/Distance all show "Unknown"**: The visitor page uses `fetch("https://ip-api.com/json/...")` but ip-api.com's free tier only works over HTTP (not HTTPS). Browsers block mixed content, so the call fails silently. City and IP are never captured.
 
----
+2. **Puzzles are too easy**: Current puzzles are trivial (e.g., "What color is the sky?", "What is 2 + 2?"). Any user or AI can solve them instantly, removing the incentive to pay for VIP.
 
-## Phase 1: Shadow Profiles + Enhanced Visitor Experience + Coded Chat
+## Plan
 
-### Database Changes
+### Step 1: Fix IP & Location Capture via Edge Function
 
-1. **Extend `interactions` table** — add columns:
-   - `anonymous_id` (text) — generated ID like `#X92K`
-   - `device_type` (text) — `mobile` or `desktop` (detected client-side via user-agent)
-   - `city` (text, nullable) — approximate city from free IP geolocation API
-   - `session_fingerprint` (text) — hash to track repeat visitors without identifying them
+Upgrade the existing `get-visitor-ip` edge function to:
+- Capture the visitor's real IP from request headers
+- Call a geolocation API **server-side** (using `ipapi.co` which supports HTTPS free tier, or `ip-api.com` over HTTP from Deno which is allowed)
+- Return: `ip`, `city`, `country`, `lat`, `lon`
 
-2. **New `puzzles` table** — stores puzzle definitions:
-   - `id`, `level` (int), `question` (text), `answer` (text), `hint_reward` (text), `difficulty` (text)
+Update `VisitorPage.tsx` to call this edge function instead of `ip-api.com` directly. This fixes both the IP and city capture.
 
-3. **New `puzzle_progress` table** — tracks which puzzles a user has solved per interaction:
-   - `id`, `user_id` (profile owner), `interaction_anonymous_id`, `puzzle_id`, `solved_at`
-   - RLS: only the profile owner can read/write their own progress
+### Step 2: Add Real Distance Calculation
 
-4. **New `guesses` table** — for "Guess Who" feature:
-   - `id`, `user_id`, `interaction_anonymous_id`, `guess_text`, `created_at`
+In `ShadowProfileCard.tsx`, if we have lat/lon for both visitor and owner, calculate actual distance using the Haversine formula. Store visitor lat/lon in the `interactions` table (new columns: `latitude`, `longitude`).
 
-5. **Add new interaction types** to the enum — expand to include coded chat categories:
-   - `proximity_close`, `proximity_circle`, `proximity_often`
-   - `time_past`, `time_recent`, `time_long`
-   - `relationship_friend`, `relationship_know`, `relationship_interested`
+Database migration:
+- Add `latitude` and `longitude` columns to `interactions` table
 
-### Frontend Changes
+### Step 3: Replace Puzzles with Hard Questions
 
-1. **Visitor Page (`VisitorPage.tsx`)** — major upgrade:
-   - Detect device type (mobile/desktop) from `navigator.userAgent`
-   - Fetch approximate city using a free IP geolocation service (ip-api.com)
-   - Generate a random anonymous ID (`#` + 4 alphanumeric chars) per session
-   - Store all metadata with each interaction
-   - Add **Coded Chat** section with categorized button groups (Proximity, Time, Relationship)
-   - Enforce restrictions: no free text in coded chat, no names, no numbers
+Replace all 12 puzzles with genuinely difficult questions that require real thinking and cannot be easily solved by AI. Examples:
+- Riddles with ambiguous/lateral thinking answers
+- Pattern recognition puzzles
+- Questions requiring cultural/contextual knowledge
+- Multi-step logic problems
 
-2. **Dashboard (`Dashboard.tsx`)** — major upgrade:
-   - Show shadow profiles: group interactions by `anonymous_id`
-   - Display mystery hints per shadow profile:
-     - "This person is closer than you think" (if same city)
-     - "Sent recently" (if < 1hr ago)
-     - "This is not their first interaction" (if repeat visitor)
-   - **Guess Who** button per shadow profile — input a guess, get mystery response
-   - **Puzzle System** — progressive reveal UI:
-     - Show locked hint cards per shadow profile
-     - Each card has a puzzle (riddle/logic question)
-     - Solving reveals one piece of info (city, device, frequency, etc.)
-   - **Profile Energy Bar** — visual bar based on total interaction count (no numbers shown)
-   - **Attention messages** — "Your profile is gaining attention today" when interactions spike
+Examples:
+- Level 1: "I have cities, but no houses. I have mountains, but no trees. I have water, but no fish. What am I?" → **map**
+- Level 2: "The more you take, the more you leave behind. What am I?" → **footsteps**
+- Level 3: "What disappears as soon as you say its name?" → **silence**
+- Level 4: "I can be cracked, made, told, and played. What am I?" → **joke**
+- Level 5: "What has a head and a tail but no body?" → **coin**
+- Level 6: "I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?" → **echo**
+- Level 7: "What comes once in a minute, twice in a moment, but never in a thousand years?" → **m** (the letter)
+- Level 8: "The person who makes it, sells it. The person who buys it never uses it. The person who uses it never knows they're using it. What is it?" → **coffin**
 
-3. **New component: `PuzzleModal.tsx`** — modal with puzzle question, answer input, success/failure feedback
+### Step 4: Update the Visitor Page
 
-4. **New component: `ShadowProfileCard.tsx`** — displays a single anonymous visitor's aggregated data with locked/unlocked hints
+Modify `VisitorPage.tsx`:
+- Replace the broken `ip-api.com` fetch with a call to the upgraded edge function
+- Store `ip_address`, `city`, `latitude`, `longitude` in the interaction record
 
----
+### Step 5: Update Shadow Profile Card
 
-## Phase 2: Premium System + Stripe Payments
+Modify `ShadowProfileCard.tsx`:
+- Use stored lat/lon to show real distance (e.g., "~15 km away")
+- Show actual IP when unlocked
+- Show real city when unlocked
 
-### Database Changes
+### Files to Change
 
-1. **Add `is_vip` and `vip_until` columns to `profiles`** table
-2. **New `payment_requests` table** — for crypto manual verification:
-   - `id`, `user_id`, `method` (stripe/crypto), `transaction_id`, `status` (pending/approved/rejected), `created_at`
-
-### Integration
-
-1. **Enable Stripe** using the Lovable Stripe integration tool
-2. Create a VIP subscription product
-3. Build a VIP upgrade page with:
-   - Stripe checkout button (auto-activation)
-   - Crypto (USDT) section with wallet address + QR code + transaction ID submission
-4. **Premium features gating**:
-   - "Ask directly" button — unlocks free text messaging between owner and anonymous sender
-   - Token system — owner grants permission for sender to reply freely
-
-### Frontend
-
-1. **New page: `VIPPage.tsx`** — payment options, feature comparison
-2. **Update Dashboard** — show VIP badge, unlock premium hints
-3. **Update VisitorPage** — if owner is VIP, show boosted profile styling
-
----
-
-## Phase 3: Admin Dashboard
-
-### Database Changes
-
-1. **`user_roles` table** — with `app_role` enum (admin, user)
-2. **`has_role()` security definer function** for RLS
-
-### Frontend
-
-1. **New page: `AdminDashboard.tsx`** — secured route, only accessible by admin role
-   - Platform stats: total users, daily active, total interactions, puzzle completion rate
-   - User management: list users, suspend/delete
-   - Interaction moderation: view flagged content (NOT message content — just metadata)
-   - Configuration: payment method toggles, puzzle difficulty settings
-2. **Admin cannot see**: private message content, personal identity, location data
-
----
-
-## Technical Details
-
-- **Geolocation**: Use `fetch('http://ip-api.com/json/')` on visitor page (free, no API key, city-level only)
-- **Anonymous ID generation**: `'#' + Math.random().toString(36).substring(2, 6).toUpperCase()` stored in sessionStorage for consistency within a visit
-- **Puzzle content**: Seed 12-15 puzzles of increasing difficulty via migration INSERT statements
-- **Profile Energy**: Calculate as `Math.min(100, interactions.length * 5)` — displayed as a gradient bar
-- **Coded chat restrictions**: Button-only interaction, validated server-side via interaction_type enum
-- **Route structure**: `/admin` for admin panel, `/vip` for upgrade page
-
----
-
-## Recommended Build Order
-
-I suggest starting with **Phase 1** (shadow profiles, puzzles, coded chat, enhanced dashboard) as it delivers the core game mechanics that make this product unique. Phases 2 and 3 can follow once the core experience is validated.
-
-Shall I proceed with Phase 1?
+| File | Change |
+|------|--------|
+| `supabase/functions/get-visitor-ip/index.ts` | Add server-side geolocation lookup |
+| `src/pages/VisitorPage.tsx` | Call edge function instead of ip-api.com |
+| `src/components/ShadowProfileCard.tsx` | Add Haversine distance calc, use lat/lon |
+| Database migration | Add `latitude`, `longitude` to `interactions` |
+| Database migration | Replace all puzzle rows with hard riddles |
 
